@@ -152,7 +152,8 @@ class Spline(Trajectory):
         p : np.ndarray shape(k+1,)
             The coefficients of the polynomial at time t, see coeffs
         """
-        adjusted_t = t - self.start
+        # adjusted_t = t - self.start
+        adjusted_t = t
         p = self.coeffs
         return adjusted_t, p
 
@@ -164,7 +165,7 @@ class Spline(Trajectory):
         adj_t, coeffs = self.getPolynomial(t)
         pdegree = self.getDegree()
         sum = 0
-        n = 0
+        n = -1
 
         if(t<self.getStart()):
             if(d==0):
@@ -173,6 +174,7 @@ class Spline(Trajectory):
             else:
                 return 0
 
+        
         if(t>self.getEnd()):
             if(d==0):
                 for i in range(pdegree): 
@@ -180,18 +182,23 @@ class Spline(Trajectory):
             else:
                 return 0
 
-        for k in range(self.knots.shape[0]):
-            if self.knots[k,1] > t :
-                n = k-1
+        for k in range(self.knots.shape[0]-1):
+            if self.knots[k,0] < t and self.knots[k+1,0] > t:
+                n = k
+ 
+
+
+        adjusted_t = t - self.knots[n,0]
+        print("\n adjust t =",adjusted_t)
 
         if(d==0):
             for i in range(pdegree): 
-                sum += coeffs[n,i]*t**(i) 
+                sum += coeffs[n,i]*adjusted_t**(i) 
 
         if(d==1):
             for i in range(pdegree-1): 
-                sum += (i+1) * coeffs[n,i+1]*self.getStart()**(i)  
-        print(self.coeffs)
+                sum += (i+1) * coeffs[n,i+1]*adjusted_t*(i)  
+        # print(self.coeffs)
 
         return sum
 
@@ -205,7 +212,7 @@ class ConstantSpline(Spline):
 class LinearSpline(Spline):
     def updatePolynomials(self):
         for i in range(self.knots.shape[0]-1):
-            self.coeffs[i,0] = self.knots[i,1]   
+            self.coeffs[i,0] = self.knots[i,1] 
             self.coeffs[i,1] = (self.knots[i+1,1] - self.knots[i,1])/(self.knots[i+1,0] - self.knots[i,0])
 
         self.coeffs[-1,0] = self.knots[-1,1] 

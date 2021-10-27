@@ -1,5 +1,5 @@
 {
     "type_name" : "LinearSpline",
-    "start" : 1.0,
+    "start" : 0.0,
     "knots" : [[0,2],[1,4],[2,3],[4,-1]]
 }
