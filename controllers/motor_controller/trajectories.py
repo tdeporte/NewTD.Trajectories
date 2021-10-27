@@ -187,14 +187,12 @@ class Spline(Trajectory):
         if(d==0):
             for i in range(pdegree): 
                 sum += coeffs[n,i]*t**(i) 
-  
-
 
         if(d==1):
             for i in range(pdegree-1): 
                 sum += (i+1) * coeffs[n,i+1]*self.getStart()**(i)  
+        print(self.coeffs)
 
-        
         return sum
 
 
@@ -209,6 +207,9 @@ class LinearSpline(Spline):
         for i in range(self.knots.shape[0]-1):
             self.coeffs[i,0] = self.knots[i,1]   
             self.coeffs[i,1] = (self.knots[i+1,1] - self.knots[i,1])/(self.knots[i+1,0] - self.knots[i,0])
+
+        self.coeffs[-1,0] = self.knots[-1,1] 
+        
 
 
 class CubicZeroDerivativeSpline(Spline):
