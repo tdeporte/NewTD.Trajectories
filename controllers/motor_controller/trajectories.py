@@ -170,9 +170,6 @@ class Spline(Trajectory):
 
     def getVal(self, t, d=0):
 
-
-        
-
         adjusted_t, coeffs = self.getPolynomial(t)
         pdegree = self.getDegree()
         sum = 0
@@ -289,9 +286,28 @@ class CubicWideStencilSpline(Spline):
     Update polynomials based on a larger neighborhood following the method 1
     described in http://www.math.univ-metz.fr/~croisil/M1-0809/2.pdf
     """
-
+    #COMMENT LE TESTER?
     def updatePolynomials(self):
-        raise NotImplementedError()
+        
+        for k in range(1,self.knots.shape[0]-2):
+        
+            # print(k)
+            ti_moins_1 = self.knots[k-1,0]
+            ti = self.knots[k,0]
+            ti1 = self.knots[k+1,0]
+            ti2 = self.knots[k+2,0]
+
+            A = np.array([[ti_moins_1**3, ti_moins_1**2, ti_moins_1, 1],[ti**3, ti**2, ti, 1],[ti1**3, ti1**2, ti1, 1],[ti2**3, ti2**2, ti2, 1]])
+
+            B = np.array([[self.knots[k-1,1], self.knots[k,1] ,self.knots[k+1,1], self.knots[k+2,1]]])[::-1]
+
+            res = np.linalg.solve(A,B.T)
+            # print("res =",res)
+
+            self.coeffs[k,:] = res.reshape((4,))[::-1]
+        self.coeffs[-1,0] = self.knots[-1,1]
+
+        # print(self.coeffs)
 
 
 class CubicCustomDerivativeSpline(Spline):
@@ -300,7 +316,23 @@ class CubicCustomDerivativeSpline(Spline):
     Therefore, knots is of shape (N,3)
     """
     def updatePolynomials(self):
-        raise NotImplementedError()
+        for k in range(self.knots.shape[0]-1):
+            # print(k)
+            ti = self.knots[k,0]
+            ti1 = self.knots[k+1,0]
+            A = np.array([[ti**3, ti**2, ti, 1],[ti1**3, ti1**2, ti1, 1],[3*ti**2, 2*ti, 1 , 0],[3*ti1**2, 2*ti1, 1 , 0]])
+            B = np.array([[self.knots[k,1], self.knots[k+1,1] ,self.knots[k,2], self.knots[k+1,2]]])[::-1]
+
+
+
+            res = np.linalg.solve(A,B.T)
+            # print("res =",res)
+
+            self.coeffs[k,:] = res.reshape((4,))[::-1]
+        self.coeffs[-1,0] = self.knots[-1,1]
+
+        # print(self.coeffs)
+
 
 
 class NaturalCubicSpline(Spline):
