@@ -162,7 +162,7 @@ class Spline(Trajectory):
                 n = k
         
 
-        adjusted_t = t + self.start - self.knots[k,0]
+        adjusted_t = t - self.knots[k,0]
         
         p = self.coeffs
         
@@ -245,8 +245,10 @@ class ConstantSpline(Spline):
 class LinearSpline(Spline):
     def updatePolynomials(self):
         for i in range(self.knots.shape[0]-1):
-            self.coeffs[i,0] = self.knots[i,1] 
-            self.coeffs[i,1] = (self.knots[i+1,1] - self.knots[i,1])/(self.knots[i+1,0] - self.knots[i,0])
+            a = (self.knots[i+1,1] - self.knots[i,1])/(self.knots[i+1,0] - self.knots[i,0]) 
+            b = self.knots[i,1] - self.knots[i,0]*a
+            self.coeffs[i,0] = b
+            self.coeffs[i,1] = a
 
         self.coeffs[-1,0] = self.knots[-1,1] 
         # print(self.coeffs)
