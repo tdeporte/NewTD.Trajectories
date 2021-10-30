@@ -7,6 +7,8 @@ import argparse
 from abc import abstractmethod
 import traceback
 
+from numpy.core.fromnumeric import reshape
+
 import robots
 
 
@@ -122,7 +124,8 @@ class Spline(Trajectory):
         self.start = start
         self.end = knots[-1,0]
         self.coeffs = np.ndarray((np.shape(knots)[0],4))
-
+        self.updatePolynomials()
+        
     @abstractmethod
     def updatePolynomials(self):
         """
@@ -152,52 +155,82 @@ class Spline(Trajectory):
         p : np.ndarray shape(k+1,)
             The coefficients of the polynomial at time t, see coeffs
         """
-        # adjusted_t = t - self.start
-        adjusted_t = t
+
+        n = 0
+        for k in range(self.knots.shape[0]-1):
+            if self.knots[k,0] < t and self.knots[k+1,0] > t:
+                n = k
+        
+
+        adjusted_t = t + self.start - self.knots[k,0]
+        
         p = self.coeffs
+        
         return adjusted_t, p
 
     def getVal(self, t, d=0):
 
 
-        self.updatePolynomials()
+        
 
-        adj_t, coeffs = self.getPolynomial(t)
+        adjusted_t, coeffs = self.getPolynomial(t)
         pdegree = self.getDegree()
         sum = 0
-        n = -1
+        n = 0
+
+        for k in range(self.knots.shape[0]-1):
+            if self.knots[k,0] < t and self.knots[k+1,0] > t:
+                n = k
+        
+
+        # slice_adjusted_t = adjusted_t - 
+        # for k in range(self.knots.shape[0]-1):
+        #     if  self.knots[k,0] > t:
+        #         n= k*1
+
+
+        adjusted_t = t 
 
         if(t<self.getStart()):
+            
             if(d==0):
-                for i in range(pdegree): 
-                    sum += coeffs[0,i]*self.getStart()**(i)  
+                for k in range(0,self.knots.shape[0]-1):
+                    if self.knots[k,0] < self.start and self.knots[k+1,0] > self.start:
+                        n = k
+                return self.knots[n+1,1] 
             else:
                 return 0
 
         
         if(t>self.getEnd()):
+            
             if(d==0):
-                for i in range(pdegree): 
-                    sum += coeffs[-1,i]*self.getEnd()**(i)  
+                
+                return self.knots[n,1]  
             else:
                 return 0
 
-        for k in range(self.knots.shape[0]-1):
-            if self.knots[k,0] < t and self.knots[k+1,0] > t:
-                n = k
- 
 
-
-        adjusted_t = t - self.knots[n,0]
-        print("\n adjust t =",adjusted_t)
+        # print("\n adjust t =",adjusted_t)
+        # print("\n etape n =",n)        
 
         if(d==0):
             for i in range(pdegree): 
                 sum += coeffs[n,i]*adjusted_t**(i) 
-
+                # print("for d = 0 coeff = {0}, puissance de t = {1}".format(coeffs[n,i],i))
         if(d==1):
-            for i in range(pdegree-1): 
-                sum += (i+1) * coeffs[n,i+1]*adjusted_t*(i)  
+            for i in range(pdegree-1):
+                sum += (i+1) * coeffs[n,i+1]*adjusted_t**(i)
+                # print("for d = 1 coeff = {0}, puissance de t = {1}".format( (i+1) *coeffs[n,i+1] ,i))
+            if abs(sum) < 0.00001:
+                sum = 0
+
+        if(d==2):
+            for i in range(pdegree-2):
+                sum +=  (i+2)*(i+1) * coeffs[n,i+2]*adjusted_t**(i)
+                # print("for d = 2 coeff = {0}, puissance de t = {1}".format( (i+2)*(i+1) *coeffs[n,i+2] ,i))
+            if abs(sum )< 0.00001:
+                sum = 0
         # print(self.coeffs)
 
         return sum
@@ -216,6 +249,7 @@ class LinearSpline(Spline):
             self.coeffs[i,1] = (self.knots[i+1,1] - self.knots[i,1])/(self.knots[i+1,0] - self.knots[i,0])
 
         self.coeffs[-1,0] = self.knots[-1,1] 
+        # print(self.coeffs)
         
 
 
@@ -225,7 +259,27 @@ class CubicZeroDerivativeSpline(Spline):
     """
 
     def updatePolynomials(self):
-        raise NotImplementedError()
+
+        for k in range(self.knots.shape[0]-1):
+            # print(k)
+            ti = self.knots[k,0]
+            ti1 = self.knots[k+1,0]
+            A = np.array([[ti**3, ti**2, ti, 1],[ti1**3, ti1**2, ti1, 1],[3*ti**2, 2*ti, 1 , 0],[3*ti1**2, 2*ti1, 1 , 0]])
+            B = np.array([[self.knots[k,1], self.knots[k+1,1] ,0, 0]])[::-1]
+
+            # print("ti =", ti)
+            # print("ti1 =", ti1)
+
+            # print("A = ", A)
+            # print("B = ", B)
+
+            res = np.linalg.solve(A,B.T)
+            # print("res =",res)
+
+            self.coeffs[k,:] = res.reshape((4,))[::-1]
+        self.coeffs[-1,0] = self.knots[-1,1]
+
+        # print(self.coeffs)
 
 
 class CubicWideStencilSpline(Spline):
