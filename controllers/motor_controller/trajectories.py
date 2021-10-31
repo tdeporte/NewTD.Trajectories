@@ -288,24 +288,49 @@ class CubicWideStencilSpline(Spline):
     """
     #COMMENT LE TESTER?
     def updatePolynomials(self):
-        
-        for k in range(1,self.knots.shape[0]-2):
-        
+        shape = self.knots.shape[0]
+        for k in range(shape-2):
+            if(k==0):
+                t0 = self.knots[k,0]
+                t1 = self.knots[k+1,0]
+                t2 = self.knots[k+2,0]
+                t3 = self.knots[k+3,0]
+
+                A = np.array([[t0**3, t0**2, t0, 1],[t1**3, t1**2, t1, 1],[t2**3, t2**2, t2, 1],[t3**3, t3**2, t3, 1]])
+
+                B = np.array([[self.knots[k,1], self.knots[k+1,1] ,self.knots[k+2,1], self.knots[k+3,1]]])[::-1]
+
             # print(k)
-            ti_moins_1 = self.knots[k-1,0]
-            ti = self.knots[k,0]
-            ti1 = self.knots[k+1,0]
-            ti2 = self.knots[k+2,0]
+            else:
+                ti_moins_1 = self.knots[k-1,0]
+                ti = self.knots[k,0]
+                ti1 = self.knots[k+1,0]
+                ti2 = self.knots[k+2,0]
 
-            A = np.array([[ti_moins_1**3, ti_moins_1**2, ti_moins_1, 1],[ti**3, ti**2, ti, 1],[ti1**3, ti1**2, ti1, 1],[ti2**3, ti2**2, ti2, 1]])
+                A = np.array([[ti_moins_1**3, ti_moins_1**2, ti_moins_1, 1],[ti**3, ti**2, ti, 1],[ti1**3, ti1**2, ti1, 1],[ti2**3, ti2**2, ti2, 1]])
 
-            B = np.array([[self.knots[k-1,1], self.knots[k,1] ,self.knots[k+1,1], self.knots[k+2,1]]])[::-1]
+                B = np.array([[self.knots[k-1,1], self.knots[k,1] ,self.knots[k+1,1], self.knots[k+2,1]]])[::-1]
 
             res = np.linalg.solve(A,B.T)
             # print("res =",res)
 
             self.coeffs[k,:] = res.reshape((4,))[::-1]
-        self.coeffs[-1,0] = self.knots[-1,1]
+        
+        #traitement de n-1
+        tn_moins_3 = self.knots[shape-4,0]
+        tn_moins_2 = self.knots[shape-3,0]
+        tn_moins_1 = self.knots[shape-2,0]
+        tn = self.knots[shape-1,0]
+
+        A = np.array([[tn_moins_3**3, tn_moins_3**2, tn_moins_3, 1],[tn_moins_2**3, tn_moins_2**2, tn_moins_2, 1],[tn_moins_1**3, tn_moins_1**2, tn_moins_1, 1],[tn**3, tn**2, tn, 1]])
+        #print(A)
+        B = np.array([[self.knots[shape-4,1], self.knots[shape-3,1] ,self.knots[shape-2,1], self.knots[shape-1,1]]])[::-1]
+        #print(B)
+        res = np.linalg.solve(A,B.T)
+
+        self.coeffs[shape-2,:] = res.reshape((4,))[::-1]
+
+        #self.coeffs[-1,1] = self.knots[-1,1]
 
         # print(self.coeffs)
 
@@ -322,8 +347,6 @@ class CubicCustomDerivativeSpline(Spline):
             ti1 = self.knots[k+1,0]
             A = np.array([[ti**3, ti**2, ti, 1],[ti1**3, ti1**2, ti1, 1],[3*ti**2, 2*ti, 1 , 0],[3*ti1**2, 2*ti1, 1 , 0]])
             B = np.array([[self.knots[k,1], self.knots[k+1,1] ,self.knots[k,2], self.knots[k+1,2]]])[::-1]
-
-
 
             res = np.linalg.solve(A,B.T)
             # print("res =",res)
