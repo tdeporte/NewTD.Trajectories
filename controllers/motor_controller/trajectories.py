@@ -205,8 +205,10 @@ class Spline(Trajectory):
         if(t>self.getEnd()):
             
             if(d==0):
-                
-                return self.knots[n,1]  
+                for k in range(0,self.knots.shape[0]-1):
+                    if self.knots[k,0] < self.start and self.knots[k+1,0] > self.start:
+                        n = k                
+                return self.knots[n-1,1]  
             else:
                 return 0
 
@@ -305,7 +307,53 @@ class CubicCustomDerivativeSpline(Spline):
 
 class NaturalCubicSpline(Spline):
     def updatePolynomials(self):
-        raise NotImplementedError()
+        n = self.knots.shape[0]
+        # print("n =",n)
+        S = np.zeros((4*n,4*n))
+        # S1 = np.zeros((4*n,4*n))
+        # S2 = np.zeros((4*n,4*n))
+        for k in range(0,n-1):
+
+
+
+            ti = self.knots[k,0]
+            ti1 = self.knots[k+1,0]              
+
+            # print(ti)                             
+            A1 = np.array([[ti**3, ti**2, ti, 1],[ti1**3, ti1**2, ti1, 1]])
+            A2 = np.array([[3*ti1**2, 2*ti1, 1 , 0, -3*ti1**2, -2*ti1, -1 , 0],[6*ti1, 2 , 0, 0, -6*ti1, -2 , 0 , 0]])
+
+            B  = np.zeros((4*n,))
+            B[2*k] = self.knots[k,1]
+            B[2*k+1] = self.knots[k,1]
+
+            # print("slicing = {0} : {1} , {2}  : {3}".format(2*k , 2*k+2    ,   4*k, 4*(k+1)))
+            S[2*k : 2*k+2    ,   4*k:4*(k+1)] = A1
+            S[2*n +2*k  : 2*n+2*k+2    ,   4*k : 4*(k+2)] = A2
+            
+            
+            # print(S)
+
+        # Bordure
+        ti = self.knots[k,0]
+        ti1 = self.knots[k+1,0]                                           
+        S[-2,0] = 6 * ti
+        S[-2,1] = 2
+
+        
+        # res = np.linalg.solve(S,B)
+
+        # res= np.linalg.pinv(S.T)@B
+
+
+        for k in range(n-1):
+            self.coeffs[k,:] = res[4*k:4*(k+1)][::-1]
+        print( self.coeffs ) 
+
+
+
+            
+        
 
 
 class PeriodicCubicSpline(Spline):
@@ -322,10 +370,38 @@ class PeriodicCubicSpline(Spline):
 
 class TrapezoidalVelocity(Trajectory):
     def __init__(self, knots, vMax, accMax, start):
-        raise NotImplementedError()
+        self.knots = knots
+        self.vMax = vMax
+        self.accMax = accMax
+        self.start = start
 
     def getVal(self, t, d):
-        raise NotImplementedError()
+
+        for k in range(self.knots.shape[0]-1):
+            if self.knots[k,0] < t and self.knots[k+1,0] > t:
+                n = k
+
+
+        if (d == 0) : 
+
+            xsrc = self.knots[n,1]
+            xend = self.knots[n+1,1]
+            D  =  (xend - xsrc)
+            if (D > (vMax**2/(accMax))): 
+                Talpha = vmax/accMax
+            
+            else : 
+                Talpha = np.sqrt(np.abs(D)/accMax)
+
+            if t < Talpha:
+                T = xsrc + np.sign(D)*accMax*(t**2)/2
+                
+            return T
+        
+
+            
+        
+        
 
 
 class RobotTrajectory:
