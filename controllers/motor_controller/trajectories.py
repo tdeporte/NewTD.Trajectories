@@ -170,9 +170,6 @@ class Spline(Trajectory):
 
     def getVal(self, t, d=0):
 
-
-        
-
         adjusted_t, coeffs = self.getPolynomial(t)
         pdegree = self.getDegree()
         sum = 0
@@ -291,9 +288,53 @@ class CubicWideStencilSpline(Spline):
     Update polynomials based on a larger neighborhood following the method 1
     described in http://www.math.univ-metz.fr/~croisil/M1-0809/2.pdf
     """
-
+    #COMMENT LE TESTER?
     def updatePolynomials(self):
-        raise NotImplementedError()
+        shape = self.knots.shape[0]
+        for k in range(shape-2):
+            if(k==0):
+                t0 = self.knots[k,0]
+                t1 = self.knots[k+1,0]
+                t2 = self.knots[k+2,0]
+                t3 = self.knots[k+3,0]
+
+                A = np.array([[t0**3, t0**2, t0, 1],[t1**3, t1**2, t1, 1],[t2**3, t2**2, t2, 1],[t3**3, t3**2, t3, 1]])
+
+                B = np.array([[self.knots[k,1], self.knots[k+1,1] ,self.knots[k+2,1], self.knots[k+3,1]]])[::-1]
+
+            # print(k)
+            else:
+                ti_moins_1 = self.knots[k-1,0]
+                ti = self.knots[k,0]
+                ti1 = self.knots[k+1,0]
+                ti2 = self.knots[k+2,0]
+
+                A = np.array([[ti_moins_1**3, ti_moins_1**2, ti_moins_1, 1],[ti**3, ti**2, ti, 1],[ti1**3, ti1**2, ti1, 1],[ti2**3, ti2**2, ti2, 1]])
+
+                B = np.array([[self.knots[k-1,1], self.knots[k,1] ,self.knots[k+1,1], self.knots[k+2,1]]])[::-1]
+
+            res = np.linalg.solve(A,B.T)
+            # print("res =",res)
+
+            self.coeffs[k,:] = res.reshape((4,))[::-1]
+        
+        #traitement de n-1
+        tn_moins_3 = self.knots[shape-4,0]
+        tn_moins_2 = self.knots[shape-3,0]
+        tn_moins_1 = self.knots[shape-2,0]
+        tn = self.knots[shape-1,0]
+
+        A = np.array([[tn_moins_3**3, tn_moins_3**2, tn_moins_3, 1],[tn_moins_2**3, tn_moins_2**2, tn_moins_2, 1],[tn_moins_1**3, tn_moins_1**2, tn_moins_1, 1],[tn**3, tn**2, tn, 1]])
+        #print(A)
+        B = np.array([[self.knots[shape-4,1], self.knots[shape-3,1] ,self.knots[shape-2,1], self.knots[shape-1,1]]])[::-1]
+        #print(B)
+        res = np.linalg.solve(A,B.T)
+
+        self.coeffs[shape-2,:] = res.reshape((4,))[::-1]
+
+        #self.coeffs[-1,1] = self.knots[-1,1]
+
+        # print(self.coeffs)
 
 
 class CubicCustomDerivativeSpline(Spline):
@@ -302,14 +343,30 @@ class CubicCustomDerivativeSpline(Spline):
     Therefore, knots is of shape (N,3)
     """
     def updatePolynomials(self):
-        raise NotImplementedError()
+        for k in range(self.knots.shape[0]-1):
+            # print(k)
+            ti = self.knots[k,0]
+            ti1 = self.knots[k+1,0]
+            A = np.array([[ti**3, ti**2, ti, 1],[ti1**3, ti1**2, ti1, 1],[3*ti**2, 2*ti, 1 , 0],[3*ti1**2, 2*ti1, 1 , 0]])
+            B = np.array([[self.knots[k,1], self.knots[k+1,1] ,self.knots[k,2], self.knots[k+1,2]]])[::-1]
+
+            res = np.linalg.solve(A,B.T)
+            # print("res =",res)
+
+            self.coeffs[k,:] = res.reshape((4,))[::-1]
+        self.coeffs[-1,0] = self.knots[-1,1]
+
+        # print(self.coeffs)
+
 
 
 class NaturalCubicSpline(Spline):
     def updatePolynomials(self):
+
+
         n = self.knots.shape[0]
         # print("n =",n)
-        S = np.zeros((4*n,4*n))
+        S = np.zeros((4*n-2,4*n))
         # S1 = np.zeros((4*n,4*n))
         # S2 = np.zeros((4*n,4*n))
         for k in range(0,n-1):
@@ -335,20 +392,19 @@ class NaturalCubicSpline(Spline):
             # print(S)
 
         # Bordure
-        ti = self.knots[k,0]
-        ti1 = self.knots[k+1,0]                                           
+        ti = self.knots[0,0]                                         
         S[-2,0] = 6 * ti
         S[-2,1] = 2
 
         
         # res = np.linalg.solve(S,B)
 
-        # res= np.linalg.pinv(S.T)@B
+        res= np.linalg.pinv(S.T)@B
 
 
         for k in range(n-1):
             self.coeffs[k,:] = res[4*k:4*(k+1)][::-1]
-        print( self.coeffs ) 
+        # print( self.coeffs ) 
 
 
 
