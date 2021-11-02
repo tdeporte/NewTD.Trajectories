@@ -431,29 +431,110 @@ class TrapezoidalVelocity(Trajectory):
         self.accMax = accMax
         self.start = start
 
+        self.offset_t = -0.2
+        self.end = 6
+        self.n = 0
+        self.t_src = 0 
+
     def getVal(self, t, d):
 
-        for k in range(self.knots.shape[0]-1):
-            if self.knots[k,0] < t and self.knots[k+1,0] > t:
-                n = k
+    
+
+        xsrc = self.knots[self.n]
+        xend = self.knots[self.n+1]
+        D  =  (xend - xsrc)
+        T = xsrc
+        V = 0
+        Acc = np.sign(D)*self.accMax
+
+        if t > self.start:
+                
+            
+            
+            if (np.abs(D) >= (self.vMax**2/(self.accMax))): 
+                Talpha = self.vMax/self.accMax
+                Dalpha = (self.accMax * Talpha**2)/2
+                Tf = 2*Talpha + (np.abs(D) - 2*Dalpha)/self.vMax
+            
+                
+                if t < self.t_src + Talpha:
+                    T = xsrc + np.sign(D)*self.accMax*(t- self.t_src)*(t- self.t_src)/2
+                    V = np.sign(D)*min(self.accMax * (t- self.t_src),self.vMax)
+
+
+
+
+                elif t > self.t_src + Tf - Talpha:
+                    T = xend - np.sign(D)*self.accMax*( Tf - t+ self.t_src)*( Tf - t+ self.t_src )/2
+                    V = np.sign(D)*min(self.accMax * (Tf- t + self.t_src ),self.vMax)
+
+                else:
+                    V = np.sign(D)*self.vMax
+                    T = xsrc + np.sign(D)*(Dalpha + self.vMax*(t - Talpha- self.t_src))
+                
+                
+            else : 
+                print("else")
+                Talpha = np.sqrt(np.abs(D)/self.accMax)
+                Dalpha = (self.accMax * Talpha**2)/2
+                Tf = 2*Talpha 
+
+                
+                T = xsrc + np.sign(D)*(Dalpha + self.vMax*(t - Talpha - self.t_src))
+                
+
+                if t < self.t_src +Talpha:
+                    T = xsrc + np.sign(D)*self.accMax*(t- self.t_src)*(t- self.t_src)/2
+                    V = np.sign(D)*min(self.accMax * (t- self.t_src),self.vMax)
+
+                if t >= self.t_src + Tf - Talpha:
+                    T = xend - np.sign(D)*self.accMax*( Tf - t+ self.t_src)*( Tf - t+ self.t_src )/2
+                    V = np.sign(D)*min(self.accMax * (Tf-t+ self.t_src),self.vMax)
+
+    
+            if t > self.t_src + Tf :
+
+                if  self.n < self.knots.shape[0]-2:
+                    self.n += 1
+                    self.t_src += Tf
+                
+                T = xend
+                V = 0
+
+        
+        else : 
+
+            T = xsrc
+            V = 0 
+            Acc = 0
 
 
         if (d == 0) : 
 
-            xsrc = self.knots[n,1]
-            xend = self.knots[n+1,1]
-            D  =  (xend - xsrc)
-            if (D > (vMax**2/(accMax))): 
-                Talpha = vmax/accMax
-            
-            else : 
-                Talpha = np.sqrt(np.abs(D)/accMax)
-
-            if t < Talpha:
-                T = xsrc + np.sign(D)*accMax*(t**2)/2
-                
             return T
-        
+
+        if (d == 1):            
+
+            return V
+
+
+
+        if(d == 2):
+
+            
+
+            if np.abs(D) <= np.abs(xsrc - T):
+                return 0
+            else:
+                return Acc
+
+
+
+
+
+
+            
+
 
             
         

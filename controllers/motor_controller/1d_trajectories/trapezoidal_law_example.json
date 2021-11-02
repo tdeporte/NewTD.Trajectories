@@ -1,7 +1,7 @@
 {
     "type_name" : "TrapezoidalVelocity",
     "start" : 0.0,
-    "knots" : [5.0, -1.0],
+    "knots" : [5.0, -1.0,-0.5,-10],
     "parameters" : {
         "acc_max" : 10.0,
         "vel_max" : 3.0
