@@ -579,7 +579,19 @@ class RobotTrajectory:
         parameters : dictionary or None
             A dictionary containing extra-parameters for trajectories
         """
-        raise NotImplementedError()
+        self.robot = model
+        self.targets = targets
+        self.trajectory_type= trajectory_type
+        self.target_space = target_space
+        self.planification_space = planification_space
+        self.start = 0
+        self.parameters = None  
+        
+        self.joints = []
+        self.traj = buildTrajectory(type_name, start, knots,parameters=parameters)
+
+
+
 
     def getVal(self, t, dim, degree, space):
         """
@@ -600,34 +612,52 @@ class RobotTrajectory:
             The value of derivative of order degree at time t on dimension dim
             of the chosen space, None if computation is not implemented or fails
         """
-        raise NotImplementedError()
+
+        if space == "operational" :
+            self.target = self.getPlanificationVal(t,degree)
+            return self.joints[dim]
+
+        if space == "joint" :
+            return self.targets[dim]
+
+
+       
+
+
+        
+        r
 
     def getPlanificationVal(self, t, degree):
-        # TODO: implement
+        self.traj.updatePolynomials()
+
+
         return None
 
     def getOperationalTarget(self, t):
-        # TODO: implement
-        return None
+        return self.target
 
     def getJointTarget(self, t):
-        # TODO: implement
-        return None
+
+        self.joint =  self.robot.computeMGI(self.joints, self.target)
+        return self.joints
 
     def getOperationalVelocity(self, t):
-        # TODO: implement
+
+        self.target_vel = self.traj.getVal(t, 1)
         return None
 
     def getJointVelocity(self, t):
-        # TODO: implement
+
+        self.joint_vel = self.robot.computeMGI(self.joints, self.target_vel)
+
         return None
 
     def getOperationalAcc(self, t):
-        # TODO: implement
+        self.target_Acc = self.traj.getVal(t, 2)
         return None
 
     def getJointAcc(self, t):
-        # TODO: implement
+       self.joint_vel = self.robot.computeMGI(self.joints, self.target_vel)
         return None
 
     def getStart(self):
