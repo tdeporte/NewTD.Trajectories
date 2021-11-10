@@ -393,9 +393,6 @@ class NaturalCubicSpline(Spline):
             B.append(0)
 
         B = np.array(B)
-        """B = B[1:]
-        np.stack((B,np.zeros((,1))))
-        print(B)"""
 
         # Bordure
         ti = self.knots[0,0]                                         
@@ -416,11 +413,8 @@ class PeriodicCubicSpline(Spline):
     """
     def updatePolynomials(self):
         n = self.knots.shape[0]
-        # print("n =",n)
         S = np.zeros((4*n,4*n))
         B  = []
-        # S1 = np.zeros((4*n,4*n))
-        # S2 = np.zeros((4*n,4*n))
         for k in range(0,n-1):
 
             ti = self.knots[k,0]
@@ -452,8 +446,6 @@ class PeriodicCubicSpline(Spline):
         S[-1,-4] = -6 * tn
         S[-1,-3] = -2
 
-
-
         S[-2,0:4] =np.array([3*ti**2, 2*ti, 1 , 0]) 
   
         S[-2,4*n-4 : 4*n] = - np.array([3*tn**2, 2*tn, 1 , 0])
@@ -467,8 +459,68 @@ class PeriodicCubicSpline(Spline):
             self.coeffs[k,:] = res[4*k:4*(k+1)][::-1]
         # print( self.coeffs ) 
 
-    """def getVal(self, t, d=0):
-        raise NotImplementedError()"""
+    def getVal(self, t, d=0):
+        adjusted_t, coeffs = self.getPolynomial(t)
+        pdegree = self.getDegree()
+        sum = 0
+        n = 0
+
+        for k in range(self.knots.shape[0]-1):
+            if self.knots[k,0] < t and self.knots[k+1,0] > t:
+                n = k
+        
+
+        # slice_adjusted_t = adjusted_t - 
+        # for k in range(self.knots.shape[0]-1):
+        #     if  self.knots[k,0] > t:
+        #         n= k*1
+
+
+        adjusted_t = t 
+
+        if(t<self.getStart()):
+            
+            if(d==0):
+                for k in range(0,self.knots.shape[0]-1):
+                    if self.knots[k,0] < self.start and self.knots[k+1,0] > self.start:
+                        n = k
+                return self.knots[n+1,1] 
+            else:
+                return 0
+
+        
+        if(t>self.getEnd()):
+            
+            if(d==0):
+                for k in range(0,self.knots.shape[0]-1):
+                    if self.knots[k,0] < self.start and self.knots[k+1,0] > self.start:
+                        n = k                
+                return self.knots[n-1,1]  
+            else:
+                return 0
+
+   
+
+        if(d==0):
+            for i in range(pdegree): 
+                sum += coeffs[n,i]*adjusted_t**(i) 
+                # print("for d = 0 coeff = {0}, puissance de t = {1}".format(coeffs[n,i],i))
+        if(d==1):
+            for i in range(pdegree-1):
+                sum += (i+1) * coeffs[n,i+1]*adjusted_t**(i)
+                # print("for d = 1 coeff = {0}, puissance de t = {1}".format( (i+1) *coeffs[n,i+1] ,i))
+            if abs(sum) < 0.00001:
+                sum = 0
+
+        if(d==2):
+            for i in range(pdegree-2):
+                sum +=  (i+2)*(i+1) * coeffs[n,i+2]*adjusted_t**(i)
+                # print("for d = 2 coeff = {0}, puissance de t = {1}".format( (i+2)*(i+1) *coeffs[n,i+2] ,i))
+            if abs(sum )< 0.00001:
+                sum = 0
+        # print(self.coeffs)
+
+        return sum
 
 
 class TrapezoidalVelocity(Trajectory):
