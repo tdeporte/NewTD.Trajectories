@@ -460,6 +460,7 @@ class PeriodicCubicSpline(Spline):
         # print( self.coeffs ) 
 
     def getVal(self, t, d=0):
+        t = t%self.knots[-1,0]
         adjusted_t, coeffs = self.getPolynomial(t)
         pdegree = self.getDegree()
         sum = 0
@@ -468,38 +469,10 @@ class PeriodicCubicSpline(Spline):
         for k in range(self.knots.shape[0]-1):
             if self.knots[k,0] < t and self.knots[k+1,0] > t:
                 n = k
-        
-
-        # slice_adjusted_t = adjusted_t - 
-        # for k in range(self.knots.shape[0]-1):
-        #     if  self.knots[k,0] > t:
-        #         n= k*1
 
 
         adjusted_t = t 
 
-        if(t<self.getStart()):
-            
-            if(d==0):
-                for k in range(0,self.knots.shape[0]-1):
-                    if self.knots[k,0] < self.start and self.knots[k+1,0] > self.start:
-                        n = k
-                return self.knots[n+1,1] 
-            else:
-                return 0
-
-        
-        if(t>self.getEnd()):
-            
-            if(d==0):
-                for k in range(0,self.knots.shape[0]-1):
-                    if self.knots[k,0] < self.start and self.knots[k+1,0] > self.start:
-                        n = k                
-                return self.knots[n-1,1]  
-            else:
-                return 0
-
-   
 
         if(d==0):
             for i in range(pdegree): 
