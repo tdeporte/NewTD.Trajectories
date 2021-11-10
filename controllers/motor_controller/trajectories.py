@@ -438,31 +438,37 @@ class PeriodicCubicSpline(Spline):
             B.append( self.knots[k,1])
             B.append( self.knots[k+1,1]) 
 
-        for i in range(0,2*n):
-            B.append(0)
-
-        # Last condition
-        for i in range(0,2):
+        for i in range(0,2*n+2):
             B.append(0)
 
         B = np.array(B)
-        """B = B[1:]
-        np.stack((B,np.zeros((,1))))
-        print(B)"""
-
+        
         # Bordure
         ti = self.knots[0,0]                                         
-        S[-2,0] = 6 * ti
-        S[-2,1] = 2
+        S[-1,0] = 6 * ti  
+        S[-1,1] = 2
 
+        tn = self.knots[n-1,0]  
+        S[-1,-4] = -6 * tn
+        S[-1,-3] = -2
+
+
+
+        S[-2,0:4] =np.array([3*ti**2, 2*ti, 1 , 0]) 
+  
+        S[-2,4*n-4 : 4*n] = - np.array([3*tn**2, 2*tn, 1 , 0])
+
+        # print(S)
         res= np.linalg.pinv(S)@B.T
+        # res = np.linalg.solve(S,B.T)
+
 
         for k in range(n-1):
             self.coeffs[k,:] = res[4*k:4*(k+1)][::-1]
         # print( self.coeffs ) 
 
-    def getVal(self, t, d=0):
-        raise NotImplementedError()
+    """def getVal(self, t, d=0):
+        raise NotImplementedError()"""
 
 
 class TrapezoidalVelocity(Trajectory):
