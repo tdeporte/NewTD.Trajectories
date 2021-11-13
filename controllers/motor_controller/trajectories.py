@@ -363,16 +363,13 @@ class CubicCustomDerivativeSpline(Spline):
 
 class NaturalCubicSpline(Spline):
     def updatePolynomials(self):
-
-
         n = self.knots.shape[0]
         # print("n =",n)
-        S = np.zeros((4*n-2,4*n))
+        S = np.zeros((4*n,4*n))
+        B  = []
         # S1 = np.zeros((4*n,4*n))
         # S2 = np.zeros((4*n,4*n))
         for k in range(0,n-1):
-
-
 
             ti = self.knots[k,0]
             ti1 = self.knots[k+1,0]              
@@ -381,36 +378,33 @@ class NaturalCubicSpline(Spline):
             A1 = np.array([[ti**3, ti**2, ti, 1],[ti1**3, ti1**2, ti1, 1]])
             A2 = np.array([[3*ti1**2, 2*ti1, 1 , 0, -3*ti1**2, -2*ti1, -1 , 0],[6*ti1, 2 , 0, 0, -6*ti1, -2 , 0 , 0]])
 
-            B  = np.zeros((4*n,))
-            B[2*k] = self.knots[k,1]
-            B[2*k+1] = self.knots[k,1]
+            #print("slicing = {0} : {1} , {2}  : {3}".format(2*k , 2*k+2    ,   4*k, 4*(k+1)))
+            S[2*k       : 2*k+2     , 4*k : 4*(k+1)] = A1
+            S[2*n +2*k  : 2*n+2*k+2 , 4*k : 4*(k+2)] = A2
 
-            # print("slicing = {0} : {1} , {2}  : {3}".format(2*k , 2*k+2    ,   4*k, 4*(k+1)))
-            S[2*k : 2*k+2    ,   4*k:4*(k+1)] = A1
-            S[2*n +2*k  : 2*n+2*k+2    ,   4*k : 4*(k+2)] = A2
-            
-            
-            # print(S)
+
+            B.append( self.knots[k,1])
+            B.append( self.knots[k+1,1]) 
+
+        for i in range(0,2*n):
+            B.append(0)
+
+        # Last condition
+        for i in range(0,2):
+            B.append(0)
+
+        B = np.array(B)
 
         # Bordure
         ti = self.knots[0,0]                                         
         S[-2,0] = 6 * ti
         S[-2,1] = 2
 
-        
-        # res = np.linalg.solve(S,B)
-
-        res= np.linalg.pinv(S.T)@B
-
+        res= np.linalg.pinv(S)@B.T
 
         for k in range(n-1):
             self.coeffs[k,:] = res[4*k:4*(k+1)][::-1]
         # print( self.coeffs ) 
-
-
-
-            
-        
 
 
 class PeriodicCubicSpline(Spline):
@@ -419,10 +413,88 @@ class PeriodicCubicSpline(Spline):
     derivative are always equal on both sides of a knot. This i
     """
     def updatePolynomials(self):
-        raise NotImplementedError()
+        n = self.knots.shape[0]
+        S = np.zeros((4*n,4*n))
+        B  = []
+        for k in range(0,n-1):
+
+            ti = self.knots[k,0]
+            ti1 = self.knots[k+1,0]              
+
+            # print(ti)                             
+            A1 = np.array([[ti**3, ti**2, ti, 1],[ti1**3, ti1**2, ti1, 1]])
+            A2 = np.array([[3*ti1**2, 2*ti1, 1 , 0, -3*ti1**2, -2*ti1, -1 , 0],[6*ti1, 2 , 0, 0, -6*ti1, -2 , 0 , 0]])
+
+            #print("slicing = {0} : {1} , {2}  : {3}".format(2*k , 2*k+2    ,   4*k, 4*(k+1)))
+            S[2*k       : 2*k+2     , 4*k : 4*(k+1)] = A1
+            S[2*n +2*k  : 2*n+2*k+2 , 4*k : 4*(k+2)] = A2
+
+
+            B.append( self.knots[k,1])
+            B.append( self.knots[k+1,1]) 
+
+        for i in range(0,2*n+2):
+            B.append(0)
+
+        B = np.array(B)
+        
+        # Bordure
+        ti = self.knots[0,0]                                         
+        S[-1,0] = 6 * ti  
+        S[-1,1] = 2
+
+        tn = self.knots[n-1,0]  
+        S[-1,-4] = -6 * tn
+        S[-1,-3] = -2
+
+        S[-2,0:4] =np.array([3*ti**2, 2*ti, 1 , 0]) 
+  
+        S[-2,4*n-4 : 4*n] = - np.array([3*tn**2, 2*tn, 1 , 0])
+
+        # print(S)
+        res= np.linalg.pinv(S)@B.T
+        # res = np.linalg.solve(S,B.T)
+
+
+        for k in range(n-1):
+            self.coeffs[k,:] = res[4*k:4*(k+1)][::-1]
+        # print( self.coeffs ) 
 
     def getVal(self, t, d=0):
-        raise NotImplementedError()
+        t = t%self.knots[-1,0]
+        adjusted_t, coeffs = self.getPolynomial(t)
+        pdegree = self.getDegree()
+        sum = 0
+        n = 0
+
+        for k in range(self.knots.shape[0]-1):
+            if self.knots[k,0] < t and self.knots[k+1,0] > t:
+                n = k
+
+
+        adjusted_t = t 
+
+
+        if(d==0):
+            for i in range(pdegree): 
+                sum += coeffs[n,i]*adjusted_t**(i) 
+                # print("for d = 0 coeff = {0}, puissance de t = {1}".format(coeffs[n,i],i))
+        if(d==1):
+            for i in range(pdegree-1):
+                sum += (i+1) * coeffs[n,i+1]*adjusted_t**(i)
+                # print("for d = 1 coeff = {0}, puissance de t = {1}".format( (i+1) *coeffs[n,i+1] ,i))
+            if abs(sum) < 0.00001:
+                sum = 0
+
+        if(d==2):
+            for i in range(pdegree-2):
+                sum +=  (i+2)*(i+1) * coeffs[n,i+2]*adjusted_t**(i)
+                # print("for d = 2 coeff = {0}, puissance de t = {1}".format( (i+2)*(i+1) *coeffs[n,i+2] ,i))
+            if abs(sum )< 0.00001:
+                sum = 0
+        # print(self.coeffs)
+
+        return sum
 
 
 class TrapezoidalVelocity(Trajectory):
@@ -716,12 +788,17 @@ class RobotTrajectory:
         return self.target_acc
 
     def getJointAcc(self, t):
+<<<<<<< HEAD
         self.target_acc= self.getOperationalAcc(t)
         # J *q' = o' donc J'*q' + J* q'' = o'' donc q'' =  J-1(o'' - J'q')
         J = self.model.computeJacobian(self.joints)
         dJ = self.model.computedJacobian(self.joints)
         self.joint_acc = np.linalg.inv(J)@(self.target_acc - dJ@self.target_vel)
         return self.joint_acc
+=======
+        self.joint_vel = self.robot.computeMGI(self.joints, self.target_vel)
+        return None
+>>>>>>> 17d5647a9d60773af80258f43a35d45768fc607d
 
     def getStart(self):
         return self.start
