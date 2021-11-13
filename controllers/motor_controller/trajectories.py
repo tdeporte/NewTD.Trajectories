@@ -254,6 +254,7 @@ class LinearSpline(Spline):
         
 
 
+
 class CubicZeroDerivativeSpline(Spline):
     """
     Update polynomials ensuring derivative is 0 at every knot.
@@ -579,18 +580,45 @@ class RobotTrajectory:
         parameters : dictionary or None
             A dictionary containing extra-parameters for trajectories
         """
-        self.robot = model
-        self.targets = targets
+        self.model = model
+        self.init_targets = targets
+
         self.trajectory_type= trajectory_type
         self.target_space = target_space
         self.planification_space = planification_space
-        self.start = 0
-        self.parameters = None  
-        
-        self.joints = []
-        self.traj = buildTrajectory(type_name, start, knots,parameters=parameters)
+        self.start = start
+        self.parameters = parameters
+        self.joints = np.zeros((len(self.model.getJointsNames()),))
+        self.dim = 0
+        self.traj = []
+        self.targets = np.zeros((self.init_targets.shape[1]-1,self.init_targets.shape[0],2))
+        # print(self.init_targets.shape)
+        # ce qui donne target[dim][actual_knot][0 ou 1]
+        # Ainsi avec dim on obtient directement le bon argument de BuildTrajectory
 
 
+        for i in range(self.init_targets.shape[1]-1):
+            for j in range(self.init_targets.shape[0]):
+                self.targets[i,j,0] = self.init_targets[j,0]
+                self.targets[i,j,1] = self.init_targets[j,i+1]
+
+        for i in self.targets:
+            # print(i)
+            self.traj.append(buildTrajectory(self.trajectory_type,start, i))
+            # self.targets[i,j,1] = self.init_targets[j,i]
+        print(self.targets)
+
+
+
+
+
+        # print(self.targets)
+        self.end = self.targets[-1,self.dim,0]
+
+        self.actual_target = 0
+        self.method = "jacobianInverse"
+        # "jacobianTransposed" 
+        # "analyticalMGI"
 
 
     def getVal(self, t, dim, degree, space):
@@ -612,58 +640,94 @@ class RobotTrajectory:
             The value of derivative of order degree at time t on dimension dim
             of the chosen space, None if computation is not implemented or fails
         """
+        self.dim = dim
+        self.getPlanificationVal(t,degree)
+        self.end = self.targets[-1,self.dim,0]
+
+
+
+        for k in range(len(self.targets)):
+            if self.targets[dim,k,0] < t and self.targets[dim,k+1,0] > t:
+                self.actual_targetn = k           
 
         if space == "operational" :
-            self.target = self.getPlanificationVal(t,degree)
-            return self.joints[dim]
+
+            if degree ==0 :
+                return self.targets[self.actual_target, dim ,1]
+            
+            if degree == 1 :
+                return self.getJointVelocity(t)
+
+
+            if degree == 2 :
+                return self.getJointAcc(t)
 
         if space == "joint" :
-            return self.targets[dim]
 
+            if degree ==0 :
+                return self.getJointTarget(t)
+            
+            if degree == 1 :
+                return self.getJointVelocity(t)
 
+            if degree == 2 :
+                return self.getJointAcc(t)
+
+        
        
 
 
         
-        r
-
     def getPlanificationVal(self, t, degree):
-        self.traj.updatePolynomials()
-
-
+        for tr in self.traj:
+            tr.updatePolynomials()
         return None
 
     def getOperationalTarget(self, t):
-        return self.target
+        return self.targets[:,self.actual_target,1:]
 
     def getJointTarget(self, t):
 
-        self.joint =  self.robot.computeMGI(self.joints, self.target)
+        self.joints =  self.model.computeMGI(self.joints,self.targets[:,self.actual_target,1:],self.method)
         return self.joints
 
     def getOperationalVelocity(self, t):
 
-        self.target_vel = self.traj.getVal(t, 1)
-        return None
+        vel = []
+        for i in self.traj:
+            vel.append(self.traj[self.dim].getVal(t, 1))
+                       
+        return self.target_vel
 
     def getJointVelocity(self, t):
 
-        self.joint_vel = self.robot.computeMGI(self.joints, self.target_vel)
-
-        return None
+        self.getOperationalVelocity
+        self.target_vel = self.getOperationalVelocity(t)
+        # J*q'  = o'donc q' = J-1 * o'
+        J = self.model.computeJacobian(self.joints)
+        o = self.target_vel
+        print(J)
+        print(o)
+        self.joint_vel = np.linalg.inv(J)@ o
+        return self.joint_vel
 
     def getOperationalAcc(self, t):
-        self.target_Acc = self.traj.getVal(t, 2)
-        return None
+        self.target_acc = self.traj[self.dim].getVal(t, 2)
+        return self.target_acc
 
     def getJointAcc(self, t):
-       self.joint_vel = self.robot.computeMGI(self.joints, self.target_vel)
-        return None
+        self.target_acc= self.getOperationalAcc(t)
+        # J *q' = o' donc J'*q' + J* q'' = o'' donc q'' =  J-1(o'' - J'q')
+        J = self.model.computeJacobian(self.joints)
+        dJ = self.model.computedJacobian(self.joints)
+        self.joint_acc = np.linalg.inv(J)@(self.target_acc - dJ@self.target_vel)
+        return self.joint_acc
 
     def getStart(self):
         return self.start
 
     def getEnd(self):
+        self.end = self.targets[self.dim,-1,0]
         return self.end
 
 
@@ -697,15 +761,19 @@ if __name__ == "__main__":
     print("source,t,order,variable,value")
     for source_name, trajectory in trajectories.items():
         for t in np.arange(tmin - args.margin, tmax + args.margin, args.dt):
+
             for degree in args.degrees:
                 order_name = order_names[degree]
+
                 if (args.robot):
                     space_dims = {
                         "joint": trajectory.model.getJointsNames(),
                         "operational": trajectory.model.getOperationalDimensionNames()
                     }
                     for space, dim_names in space_dims.items():
+
                         for dim in range(len(dim_names)):
+                            
                             v = trajectory.getVal(t, dim, degree, space)
                             if v is not None:
                                 print("{:}, {:}, {:}, {:}, {:}".format(source_name, t, order_name, dim_names[dim], v))

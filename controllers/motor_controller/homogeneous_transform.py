@@ -39,6 +39,42 @@ def rot_z(alpha):
                      [0, 0, 0, 1]], dtype=np.double)
 
 
+def dd_rot_x(alpha):
+    """Return the 4x4 homogeneous transform corresponding to a rotation of
+    alpha around x
+    """
+    c = np.cos(alpha)
+    s = np.sin(alpha)
+    return -np.array([[0, 0, 0, 0],
+                     [0, c, -s, 0],
+                     [0, s, c, 0],
+                     [0, 0, 0, 1]], dtype=np.double)
+
+
+def dd_rot_y(alpha):
+    """Return the 4x4 homogeneous transform corresponding to a rotation of
+    alpha around y
+    """
+    c = np.cos(alpha)
+    s = np.sin(alpha)
+    return -np.array([[c, 0, s, 0],
+                     [0, 0, 0, 0],
+                     [-s, 0, c, 0],
+                     [0, 0, 0, 1]], dtype=np.double)
+
+
+def dd_rot_z(alpha):
+    """Return the 4x4 homogeneous transform corresponding to a rotation of
+    alpha around z
+    """
+    c = np.cos(alpha)
+    s = np.sin(alpha)
+    return -np.array([[c, -s, 0, 0],
+                     [s, c, 0, 0],
+                     [0, 0, 0, 0],
+                     [0, 0, 0, 1]], dtype=np.double)
+
+
 def translation(vec):
     """Return the 4x4 homogeneous transform corresponding to a translation of
     vec
