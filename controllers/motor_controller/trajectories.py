@@ -547,7 +547,7 @@ class TrapezoidalVelocity(Trajectory):
                 
                 
             else : 
-                print("else")
+                # print("else")
                 Talpha = np.sqrt(np.abs(D)/self.accMax)
                 Dalpha = (self.accMax * Talpha**2)/2
                 Tf = 2*Talpha 
@@ -676,9 +676,12 @@ class RobotTrajectory:
 
         for i in self.targets:
             # print(i)
-            self.traj.append(buildTrajectory(self.trajectory_type,start, i))
+            if self.trajectory_type == "TrapezoidalVelocity" :
+                self.traj.append(buildTrajectory(self.trajectory_type,start, i, self.parameters))
+            else :
+                self.traj.append(buildTrajectory(self.trajectory_type,start, i))
             # self.targets[i,j,1] = self.init_targets[j,i]
-        print(self.targets)
+        # print(self.targets)
 
 
 
@@ -718,7 +721,7 @@ class RobotTrajectory:
 
 
 
-        for k in range(len(self.targets)):
+        for k in range(len(self.targets)-1):
             if self.targets[dim,k,0] < t and self.targets[dim,k+1,0] > t:
                 self.actual_targetn = k           
 
@@ -728,22 +731,22 @@ class RobotTrajectory:
                 return self.targets[self.actual_target, dim ,1]
             
             if degree == 1 :
-                return self.getJointVelocity(t)
+                return self.getJointVelocity(t)[self.dim]
 
 
             if degree == 2 :
-                return self.getJointAcc(t)
+                return self.getJointAcc(t)[self.dim]
 
         if space == "joint" :
 
             if degree ==0 :
-                return self.getJointTarget(t)
+                return self.getJointTarget(t)[self.dim]
             
             if degree == 1 :
-                return self.getJointVelocity(t)
+                return self.getJointVelocity(t)[self.dim]
 
             if degree == 2 :
-                return self.getJointAcc(t)
+                return self.getJointAcc(t)[self.dim]
 
         
        
@@ -760,15 +763,17 @@ class RobotTrajectory:
 
     def getJointTarget(self, t):
 
-        self.joints =  self.model.computeMGI(self.joints,self.targets[:,self.actual_target,1:],self.method)
+        self.joints =  self.model.computeMGI(self.joints,self.init_targets[self.actual_target,1::],self.method)
+        
         return self.joints
 
     def getOperationalVelocity(self, t):
 
         vel = []
         for i in self.traj:
-            vel.append(self.traj[self.dim].getVal(t, 1))
-                       
+            vel.append(i.getVal(t, 1))
+        self.target_vel = np.array(vel) 
+        # print("target vel ",self.target_vel)              
         return self.target_vel
 
     def getJointVelocity(self, t):
@@ -778,9 +783,10 @@ class RobotTrajectory:
         # J*q'  = o'donc q' = J-1 * o'
         J = self.model.computeJacobian(self.joints)
         o = self.target_vel
-        print(J)
-        print(o)
-        self.joint_vel = np.linalg.inv(J)@ o
+        # print(J)
+        # print(o)
+        self.joint_vel = np.linalg.inv(J)@ o.T
+        # print("joints shape ",self.joints.shape)
         return self.joint_vel
 
     def getOperationalAcc(self, t):
@@ -788,17 +794,18 @@ class RobotTrajectory:
         return self.target_acc
 
     def getJointAcc(self, t):
-<<<<<<< HEAD
-        self.target_acc= self.getOperationalAcc(t)
-        # J *q' = o' donc J'*q' + J* q'' = o'' donc q'' =  J-1(o'' - J'q')
+        acc = []
+        for i in self.traj:
+            acc.append(i.getVal(t, 2))
+        self.target_acc = np.array(acc) 
+        # print("target acc ",self.target_acc)              
         J = self.model.computeJacobian(self.joints)
         dJ = self.model.computedJacobian(self.joints)
-        self.joint_acc = np.linalg.inv(J)@(self.target_acc - dJ@self.target_vel)
+        # print(self.target_acc.shape)
+        # print(self.target_vel.shape)
+        # print('acc joints ', self.joints.shape)
+        self.joint_acc = np.linalg.inv(J)@(self.target_acc - dJ@self.target_vel.T)
         return self.joint_acc
-=======
-        self.joint_vel = self.robot.computeMGI(self.joints, self.target_vel)
-        return None
->>>>>>> 17d5647a9d60773af80258f43a35d45768fc607d
 
     def getStart(self):
         return self.start

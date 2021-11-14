@@ -205,7 +205,7 @@ class RobotModel:
         max_step_size = 0.05
         rng = np.random.default_rng(seed)
         for i in range(max_steps):
-            print(joints)
+
             pos = self.computeMGD(joints)
             error = target - pos
             if np.linalg.norm(error) < tol:
@@ -294,7 +294,7 @@ class RobotRT(RobotModel):
         return np.array([[-1, 1],  [-1, 1]]) * max_dist
 
     def getBaseFromToolTransform(self, joints):
-        print(joints)
+
         T_0_1 = self.T_0_1 @ ht.rot_z(joints[0])
         T_1_2 = self.T_1_2 @ ht.translation(joints[1] * np.array([1, 0, 0]))
         return T_0_1 @ T_1_2 @ self.T_2_E
@@ -325,7 +325,13 @@ class RobotRT(RobotModel):
                    ht.d_translation(np.array([1, 0, 0])) @ self.T_2_E)[:2, 3]
         return J
 
+    def computedJacobian(self, joints):
+        J = np.zeros((2, 2), dtype=np.double)
+        # Derivation by joint[i] + picking up (x,y) from 4x4 matrix
+        J[:, 0] = (self.T_0_1 @ ht.dd_rot_z(joints[0]) @ self.T_1_2 @
+                   ht.translation(joints[1] * np.array([1, 0, 0])) @ self.T_2_E)[:2, 3]
 
+        return J
 class RobotRRR(RobotModel):
     """
     Model a robot with 3 degrees of freedom along different axis
@@ -403,6 +409,20 @@ class RobotRRR(RobotModel):
                    self.T_3_E)[:3, 3]
         J[:, 2] = (self.T_0_1 @ ht.rot_z(joints[0]) @ self.T_1_2 @
                    ht.rot_x(joints[1]) @ self.T_2_3 @ ht.d_rot_x(joints[2]) @
+                   self.T_3_E)[:3, 3]
+        return J
+
+    def computedJacobian(self, joints):
+        J = np.zeros((3, 3), dtype=np.double)
+        # Derivation by joint[i] + picking up (x,y) from 4x4 matrix
+        J[:, 0] = (self.T_0_1 @ ht.dd_rot_z(joints[0]) @ self.T_1_2 @
+                   ht.rot_x(joints[1]) @ self.T_2_3 @ ht.rot_x(joints[2]) @
+                   self.T_3_E)[:3, 3]
+        J[:, 1] = (self.T_0_1 @ ht.rot_z(joints[0]) @ self.T_1_2 @
+                   ht.dd_rot_x(joints[1]) @ self.T_2_3 @ ht.rot_x(joints[2]) @
+                   self.T_3_E)[:3, 3]
+        J[:, 2] = (self.T_0_1 @ ht.rot_z(joints[0]) @ self.T_1_2 @
+                   ht.rot_x(joints[1]) @ self.T_2_3 @ ht.dd_rot_x(joints[2]) @
                    self.T_3_E)[:3, 3]
         return J
 
@@ -519,27 +539,27 @@ class LegRobot(RobotModel):
                                   self.T_4_E)
         return J
 
-    def computeJacobian(self, joints):
+    def computedJacobian(self, joints):
         J = np.zeros((4, 4), dtype=np.double)
-        J[:, 0] = self.extractMGD(self.T_0_1 @ ht.d_rot_z(joints[0]) @
+        J[:, 0] = self.extractMGD(self.T_0_1 @ ht.dd_rot_z(joints[0]) @
                                   self.T_1_2 @ ht.rot_x(joints[1]) @
                                   self.T_2_3 @ ht.rot_x(joints[2]) @
                                   self.T_3_4 @ ht.rot_x(joints[3]) @
                                   self.T_4_E)
         J[:, 1] = self.extractMGD(self.T_0_1 @ ht.rot_z(joints[0]) @
-                                  self.T_1_2 @ ht.d_rot_x(joints[1]) @
+                                  self.T_1_2 @ ht.dd_rot_x(joints[1]) @
                                   self.T_2_3 @ ht.rot_x(joints[2]) @
                                   self.T_3_4 @ ht.rot_x(joints[3]) @
                                   self.T_4_E)
         J[:, 2] = self.extractMGD(self.T_0_1 @ ht.rot_z(joints[0]) @
                                   self.T_1_2 @ ht.rot_x(joints[1]) @
-                                  self.T_2_3 @ ht.d_rot_x(joints[2]) @
+                                  self.T_2_3 @ ht.dd_rot_x(joints[2]) @
                                   self.T_3_4 @ ht.rot_x(joints[3]) @
                                   self.T_4_E)
         J[:, 3] = self.extractMGD(self.T_0_1 @ ht.rot_z(joints[0]) @
                                   self.T_1_2 @ ht.rot_x(joints[1]) @
                                   self.T_2_3 @ ht.rot_x(joints[2]) @
-                                  self.T_3_4 @ ht.d_rot_x(joints[3]) @
+                                  self.T_3_4 @ ht.dd_rot_x(joints[3]) @
                                   self.T_4_E)
         return J
 
